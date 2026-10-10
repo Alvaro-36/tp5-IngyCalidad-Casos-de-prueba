@@ -12,6 +12,8 @@ const crearTurnosDemo = () => [
   new Evento('E-02', 'cancelado', new Date(2026, 10, 20, 11, 0), 'Seguimiento', '2614444444', 'María López'),
 ];
 
+const HORARIOS_REAGENDADO_DEMO = [new Date(2026, 10, 22, 15, 30)];
+
 export default function Home() {
   const [turnosDemo] = useState(crearTurnosDemo);
 
@@ -30,7 +32,7 @@ export default function Home() {
         <FormularioDatosPersonales onSubmit={handleSubmit} onCancel={handleCancel} />
       </div>
       <h1 className="mt-10 mb-4 text-xl font-semibold text-zinc-800">Panel del administrador</h1>
-      <CalendarioAdmin turnos={turnosDemo} />
+      <CalendarioAdmin turnos={turnosDemo} horariosDisponiblesReagendado={HORARIOS_REAGENDADO_DEMO} />
     </main>
   );
 }

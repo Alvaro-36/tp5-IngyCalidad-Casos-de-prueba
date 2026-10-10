@@ -13,6 +13,8 @@ interface Props {
 	onConfirmar?: (turno: Evento) => void; // Ej: disparar el email al invitado
 	onReagendar?: (turno: Evento) => void; // Ej: notificar al usuario invitado
 	horariosDisponiblesReagendado?: Date[];
+	// M05-US02: notifica la cancelación (punto de enganche para liberar el slot en otros sistemas)
+	onCancelar?: (turno: Evento, motivo: string) => void;
 }
 
 const ETIQUETAS_ESTADO: Record<string, string> = {
@@ -31,7 +33,18 @@ const COLORES_ESTADO: Record<string, string> = {
 
 const DIAS_SEMANA = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
-export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSeleccionarDia, onConfirmar, onReagendar, horariosDisponiblesReagendado = [] }: Props) {
+// M05-US02: solo una reserva activa (pendiente o confirmada) puede cancelarse.
+const esReservaActiva = (estado: string): boolean => estado === 'pendiente' || estado === 'confirmado';
+
+// M05-US02 (Escenario 3): las reservas de fechas ya transcurridas no se pueden cancelar.
+const esFechaPasada = (turno: Evento, fechaHoy: Date): boolean =>
+	aSoloDia(turno.obtenerFechaHora()).getTime() < fechaHoy.getTime();
+
+const horaDe = (turno: Evento): string =>
+	String(turno.obtenerFechaHora().getHours()).padStart(2, '0') + ':' +
+	String(turno.obtenerFechaHora().getMinutes()).padStart(2, '0');
+
+export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSeleccionarDia, onConfirmar, onReagendar, horariosDisponiblesReagendado = [], onCancelar }: Props) {
 	const fechaHoy = useMemo(() => aSoloDia(hoy ?? new Date()), [hoy]);
 	
 	// El mes/año visible se inicializa con el mes de fechaHoy
@@ -46,6 +59,11 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 	const [ultimoReagendado, setUltimoReagendado] = useState<string | null>(null);
 	const [turnoAReagendar, setTurnoAReagendar] = useState<Evento | null>(null);
 	const [fechaReagendada, setFechaReagendada] = useState('');
+
+	// M05-US02: reserva seleccionada para cancelar, motivo tipeado en el modal y última cancelación exitosa.
+	const [turnoAEliminar, setTurnoAEliminar] = useState<Evento | null>(null);
+	const [motivo, setMotivo] = useState('');
+	const [ultimoCancelado, setUltimoCancelado] = useState<string | null>(null);
 
 	const cambiarMes = (delta: number) => {
 		setMesVisible((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
@@ -85,6 +103,8 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 		const iso = aISO(fecha);
 		setFechaSeleccionada(iso);
 		setUltimoConfirmado(null);
+		setUltimoCancelado(null);
+		setUltimoReagendado(null);
 		if (onSeleccionarDia) {
 			onSeleccionarDia(fecha);
 		}
@@ -93,6 +113,8 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 	const confirmarTurno = (turno: Evento) => {
 		turno.confirmar();
 		setUltimoConfirmado(turno.obtenerId());
+		setUltimoCancelado(null);
+		setUltimoReagendado(null);
 		if (onConfirmar) {
 			onConfirmar(turno);
 		}
@@ -107,8 +129,36 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 		if (!turnoAReagendar || !fechaReagendada) return;
 		turnoAReagendar.reagendar(new Date(fechaReagendada));
 		setUltimoReagendado(turnoAReagendar.obtenerId());
+		setUltimoConfirmado(null);
+		setUltimoCancelado(null);
 		setTurnoAReagendar(null);
 		onReagendar?.(turnoAReagendar);
+	};
+
+	// M05-US02 (Escenario 2): abrir el modal con el campo opcional de motivo.
+	const abrirModalCancelacion = (turno: Evento) => {
+		setTurnoAEliminar(turno);
+		setMotivo('');
+	};
+
+	const cerrarModalCancelacion = () => {
+		setTurnoAEliminar(null);
+		setMotivo('');
+	};
+
+	// M05-US02 (Escenario 1): al confirmar, la reserva pasa a "Cancelada" y el horario queda libre.
+	const confirmarCancelacion = () => {
+		if (!turnoAEliminar) return;
+		const reserva = turnoAEliminar;
+		reserva.cancelarEvento();
+		setUltimoCancelado(reserva.obtenerId());
+		setUltimoConfirmado(null);
+		setUltimoReagendado(null);
+		if (onCancelar) {
+			onCancelar(reserva, motivo.trim());
+		}
+		setTurnoAEliminar(null);
+		setMotivo('');
 	};
 
 	return (
@@ -243,13 +293,20 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 						Evento reagendado correctamente. Se notificó al usuario del cambio de horario.
 					</p>
 				)}
+
+			{/* M05-US02 (Escenario 1): mensaje de cancelación exitosa */}
+			{ultimoCancelado !== null && (
+				<p role="status" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
+					Reserva cancelada correctamente. El horario quedó disponible.
+				</p>
+			)}
 				
 				{turnosDelDia.length > 0 ? (
 					<div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] pr-1">
 						{turnosDelDia.map((turno) => {
-							const hora = String(turno.obtenerFechaHora().getHours()).padStart(2, '0') + ':' + 
-							             String(turno.obtenerFechaHora().getMinutes()).padStart(2, '0');
+							const hora = horaDe(turno);
 							const estado = turno.obtenerEstado();
+							const pasada = esFechaPasada(turno, fechaHoy);
 							return (
 								<article
 									key={turno.obtenerId()}
@@ -268,30 +325,45 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 										<p><span className="font-medium text-zinc-500">Teléfono:</span> {turno.obtenerTelefono() || 'No provisto'}</p>
 										<p><span className="font-medium text-zinc-550">Consulta:</span> {turno.obtenerDescripcion() || 'Sin descripción'}</p>
 									</div>
-									<div className="flex justify-between items-center pt-1">
+									<div className="flex justify-between items-center pt-1 gap-2">
 										<span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${COLORES_ESTADO[estado] ?? 'bg-zinc-100 text-zinc-700'}`}>
 											{ETIQUETAS_ESTADO[estado] ?? estado}
 										</span>
 										{/* M05-US5: la opción solo se muestra para eventos pendientes */}
-										{turno.puedeConfirmarse() && (
+										<div className="flex gap-2">
+											{turno.puedeConfirmarse() && (
+												<button
+													type="button"
+													onClick={() => confirmarTurno(turno)}
+													aria-label={`Confirmar turno de ${turno.obtenerNombre()}`}
+													className="rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+												>
+													Confirmar
+												</button>
+											)}
+											{/* M05-US02: la opción se ofrece en reservas activas; deshabilitada en fechas pasadas */}
+											{esReservaActiva(estado) && (
+												<button
+													type="button"
+													onClick={() => abrirModalCancelacion(turno)}
+													disabled={pasada}
+													aria-label={`Cancelar turno de ${turno.obtenerNombre()}`}
+													title={pasada ? 'No se pueden cancelar reservas de fechas pasadas' : undefined}
+													className="rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+												>
+													Cancelar
+												</button>
+											)}
 											<button
 												type="button"
-												onClick={() => confirmarTurno(turno)}
-												aria-label={`Confirmar turno de ${turno.obtenerNombre()}`}
-												className="rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+												disabled={!turno.puedeReagendarse()}
+												onClick={() => abrirReagendado(turno)}
+												aria-label={`Reagendar turno de ${turno.obtenerNombre()}`}
+												className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:bg-zinc-300"
 											>
-												Confirmar
+												Reagendar
 											</button>
-										)}
-										<button
-											type="button"
-											disabled={!turno.puedeReagendarse()}
-											onClick={() => abrirReagendado(turno)}
-											aria-label={`Reagendar turno de ${turno.obtenerNombre()}`}
-											className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:bg-zinc-300"
-										>
-											Reagendar
-										</button>
+										</div>
 									</div>
 								</article>
 							);
@@ -306,6 +378,54 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 					</div>
 				)}
 			</section>
+
+			{/* M05-US02 (Escenario 2): modal con campo opcional de motivo, máximo 200 caracteres */}
+			{turnoAEliminar && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+					<div
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="titulo-cancelar-reserva"
+						className="flex w-full max-w-sm flex-col gap-3 rounded-xl bg-white p-5 shadow-lg"
+					>
+						<h3 id="titulo-cancelar-reserva" className="text-lg font-semibold text-zinc-800">
+							Cancelar reserva
+						</h3>
+						<p className="text-sm text-zinc-600">
+							<span className="font-medium text-zinc-800">{turnoAEliminar.obtenerNombre()}</span> — {horaDe(turnoAEliminar)} hs
+						</p>
+						<label htmlFor="motivo-cancelacion" className="text-sm font-medium text-zinc-700">
+							Motivo de cancelación (opcional)
+						</label>
+						<textarea
+							id="motivo-cancelacion"
+							rows={3}
+							maxLength={200}
+							value={motivo}
+							onChange={(e) => setMotivo(e.target.value)}
+							className="resize-none rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+							placeholder="Máximo 200 caracteres"
+						/>
+						<p className="text-xs text-zinc-500">{motivo.length} de 200 caracteres</p>
+						<div className="flex justify-end gap-2 pt-1">
+							<button
+								type="button"
+								onClick={cerrarModalCancelacion}
+								className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 transition-colors"
+							>
+								Volver
+							</button>
+							<button
+								type="button"
+								onClick={confirmarCancelacion}
+								className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+							>
+								Confirmar cancelación
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{turnoAReagendar !== null && (
 				<section role="dialog" aria-modal="true" aria-labelledby="titulo-reagendar" className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">

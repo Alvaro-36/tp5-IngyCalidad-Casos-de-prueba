@@ -9,6 +9,7 @@ export function crearProfesionalMock(hoy: Date): Profesional {
 	return {
 		id: 'prof-1',
 		nombre: 'Dra. Ana Pérez',
+		especialidad: 'Medicina general',
 		tiposDeEvento: [
 			{
 				id: 'consulta-inicial',

@@ -9,11 +9,23 @@ interface Props {
 	// Inyectables para tests deterministas; en producción usan valores reales.
 	profesional?: Profesional;
 	hoy?: Date;
+	horariosNoDisponibles?: ReadonlySet<string>;
+	onSeleccionarHorario?: (seleccion: {
+		profesional: Profesional;
+		evento: TipoEvento;
+		fecha: string;
+		horario: string;
+	}) => void;
 }
 
 const DIAS_SEMANA = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
-export default function SeleccionEvento({ profesional, hoy }: Props) {
+export default function SeleccionEvento({
+	profesional,
+	hoy,
+	horariosNoDisponibles = new Set<string>(),
+	onSeleccionarHorario,
+}: Props) {
 	const fechaHoy = useMemo(() => aSoloDia(hoy ?? new Date()), [hoy]);
 	const prof = useMemo(() => profesional ?? crearProfesionalMock(fechaHoy), [profesional, fechaHoy]);
 
@@ -172,15 +184,27 @@ export default function SeleccionEvento({ profesional, hoy }: Props) {
 							{horariosDelDia.length === 0 && <p className="text-sm text-zinc-400">Sin horarios.</p>}
 							{horariosDelDia.map((hora) => {
 								const activo = hora === horario;
+								const ocupado = horariosNoDisponibles.has(`${prof.nombre}|${fechaSeleccionada}|${hora}`);
 								return (
 									<button
 										key={hora}
 										type="button"
+										disabled={ocupado}
 										aria-pressed={activo}
-										onClick={() => setHorario(hora)}
+										onClick={() => {
+											setHorario(hora);
+											onSeleccionarHorario?.({
+												profesional: prof,
+												evento: eventoSeleccionado,
+												fecha: fechaSeleccionada,
+												horario: hora,
+											});
+										}}
 										className={`rounded-lg border p-2.5 text-center font-medium transition-all ${
 											activo
 												? 'border-green-500 bg-green-50 text-green-700 ring-2 ring-green-200'
+													: ocupado
+														? 'border-zinc-200 bg-zinc-100 text-zinc-400 line-through'
 												: 'border-zinc-200 text-zinc-700 hover:border-green-300 hover:bg-green-50'
 										}`}
 									>

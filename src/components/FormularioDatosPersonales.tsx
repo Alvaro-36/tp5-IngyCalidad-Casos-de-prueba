@@ -7,18 +7,21 @@ export interface DatosPersonales {
 	email: string;
 	telefono?: string;
 	nota?: string;
+	modalidad?: 'presencial' | 'virtual';
 }
 
 export interface FormularioDatosPersonalesProps {
 	onSubmit: (datos: DatosPersonales) => void;
 	onCancel?: () => void;
+	mostrarModalidad?: boolean;
 }
 
-export default function FormularioDatosPersonales({ onSubmit, onCancel }: FormularioDatosPersonalesProps) {
+export default function FormularioDatosPersonales({ onSubmit, onCancel, mostrarModalidad = false }: FormularioDatosPersonalesProps) {
 	const [nombre, setNombre] = useState('');
 	const [email, setEmail] = useState('');
 	const [telefono, setTelefono] = useState('');
 	const [nota, setNota] = useState('');
+	const [modalidad, setModalidad] = useState<'presencial' | 'virtual'>('presencial');
 
 	const [errores, setErrores] = useState<{ nombre?: string; email?: string }>({});
 
@@ -44,7 +47,13 @@ export default function FormularioDatosPersonales({ onSubmit, onCancel }: Formul
 		}
 
 		setErrores({});
-		onSubmit({ nombre, email, telefono: telefono.trim(), nota: nota.trim() });
+		onSubmit({
+			nombre,
+			email,
+			telefono: telefono.trim(),
+			nota: nota.trim(),
+			...(mostrarModalidad ? { modalidad } : {}),
+		});
 	};
 
 	const handleCancel = () => {
@@ -94,6 +103,21 @@ export default function FormularioDatosPersonales({ onSubmit, onCancel }: Formul
 					className="border border-zinc-300 rounded-md p-2 text-zinc-900"
 				/>
 			</div>
+
+			{mostrarModalidad && (
+				<div className="flex flex-col gap-1">
+					<label htmlFor="modalidad" className="text-sm font-medium text-zinc-700">Modalidad</label>
+					<select
+						id="modalidad"
+						value={modalidad}
+						onChange={(e) => setModalidad(e.target.value as 'presencial' | 'virtual')}
+						className="border border-zinc-300 rounded-md p-2 text-zinc-900"
+					>
+						<option value="presencial">Presencial</option>
+						<option value="virtual">Virtual</option>
+					</select>
+				</div>
+			)}
 
 			<div className="flex flex-col gap-1">
         		<label htmlFor="nota" className="text-sm font-medium text-zinc-700">Nota para el administrador (opcional)</label>

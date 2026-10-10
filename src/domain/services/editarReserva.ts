@@ -7,10 +7,17 @@ export interface Reserva {
 }
 
 export interface ResumenReserva {
+  profesional: string;
+  especialidad: string;
+  tipoConsulta: string;
+  duracion: number;
   pacienteNombre: string;
   pacienteEmail: string;
+  pacienteTelefono?: string;
   fecha: string;
   horario: string;
+  descripcion: string;
+  modalidad: 'presencial' | 'virtual';
 }
 
 function validarNombre(nombre: string) {
@@ -52,10 +59,17 @@ export function editarDatosReserva(reserva: Reserva, cambios: Partial<DatosReser
 
 export function getResumenReserva(reserva: Reserva): ResumenReserva {
   return {
+    profesional: reserva.datos.profesional,
+    especialidad: reserva.datos.especialidad,
+    tipoConsulta: reserva.datos.tipoConsulta,
+    duracion: reserva.datos.duracion,
     pacienteNombre: reserva.datos.pacienteNombre,
     pacienteEmail: reserva.datos.pacienteEmail,
+    pacienteTelefono: reserva.datos.pacienteTelefono,
     fecha: reserva.datos.fecha,
-    horario: reserva.datos.horario
+    horario: reserva.datos.horario,
+    descripcion: reserva.datos.descripcion,
+    modalidad: reserva.datos.modalidad
   };
 }
 

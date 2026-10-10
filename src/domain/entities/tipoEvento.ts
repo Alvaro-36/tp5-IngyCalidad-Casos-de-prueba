@@ -17,5 +17,6 @@ export interface TipoEvento {
 export interface Profesional {
 	id: string;
 	nombre: string;
+	especialidad?: string;
 	tiposDeEvento: TipoEvento[];
 }

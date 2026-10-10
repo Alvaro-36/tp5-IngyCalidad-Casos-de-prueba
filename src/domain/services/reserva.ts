@@ -9,6 +9,7 @@ export interface DatosReserva {
   modalidad: "presencial" | "virtual";
   pacienteNombre: string;
   pacienteEmail: string;
+  pacienteTelefono?: string;
 }
 
 export interface ResultadoConfirmacion {

@@ -37,7 +37,7 @@ describe('M05-US3 - Reagendar evento', () => {
 		expect(within(panelNuevaFecha).getByText('15:30 hs')).toBeInTheDocument();
 	});
 
-	it('CP-M05-014: deshabilita el reagendado de un evento en curso o completado', async () => {
+	it('Escenario 2: deshabilita el reagendado de un evento en curso o completado', async () => {
 		const user = userEvent.setup();
 		const enCurso = new Evento('E-05', 'en_curso', FECHA_ORIGINAL, '', '', 'María López');
 		const completado = new Evento('E-06', 'completado', new Date(2026, 10, 20, 11, 0), '', '', 'Pedro Gómez');

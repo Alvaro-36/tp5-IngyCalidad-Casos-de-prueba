@@ -21,25 +21,6 @@ Historia de usuario: como administrador, quiero reagendar los eventos previament
 | 2 | Hacer clic en **Reagendar**. | Se abre el diálogo “Reagendar evento” con las fechas y horarios disponibles, incluida la franja 22/11/2026 15:30. |
 | 3 | Seleccionar la franja 22/11/2026 15:30 y hacer clic en **Confirmar nuevo horario**. | Se muestra “Evento reagendado correctamente. Se notificó al usuario del cambio de horario.” El evento deja de aparecer el día 20 y se visualiza el 22/11/2026 a las 15:30. |
 
-## CP-M05-014 – Caso negativo
-
-| Campo | Contenido |
-|---|---|
-| **Identificador** | CP-M05-014 |
-| **Título** | Impedir el reagendado de un evento en curso o completado |
-| **Objetivo** | Verificar que no se permitan modificaciones de horario sobre eventos activos o finalizados. |
-| **Requerimientos asociados** | AYA-M05-RF04 · M05-US03, escenario 2 |
-| **Prerrequisitos** | El administrador está en el panel de administración. Existen los eventos `E-05` en curso y `E-06` completado el 20/11/2026. |
-| **Datos de prueba** | `E-05`: cliente “María López”, estado “En curso”, hora 10:00. `E-06`: cliente “Pedro Gómez”, estado “Completado”, hora 11:00. |
-| **Tipo de prueba** | Negativa |
-| **Notas y preguntas** | La acción se mantiene visible pero deshabilitada, para comunicar claramente que el cambio de horario no está permitido en esos estados. |
-
-| # | Acción del tester | Respuesta esperada del sistema |
-|---|---|---|
-| 1 | Seleccionar el día 20/11/2026. | Se muestran las tarjetas de María López y Pedro Gómez con sus estados respectivos. |
-| 2 | Revisar las acciones disponibles en ambas tarjetas. | La acción **Reagendar** se muestra deshabilitada para ambos eventos. |
-| 3 | Confirmar los datos de las tarjetas. | Las fechas y horarios originales se mantienen sin cambios; no se muestra notificación de modificación. |
-
 ## Evidencia de código
 
 - Dominio: `src/domain/entities/evento.ts`, métodos `puedeReagendarse()` y `reagendar()`.

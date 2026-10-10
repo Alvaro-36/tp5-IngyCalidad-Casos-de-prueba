@@ -10,11 +10,26 @@ interface Props {
 	reservas?: string[]; // Lista de fechas ISO para compatibilidad retroactiva
 	turnos?: Evento[];   // Turnos completos para mostrar en el panel de reservas
 	onSeleccionarDia?: (fecha: Date) => void;
+	onConfirmar?: (turno: Evento) => void; // Ej: disparar el email al invitado
 }
+
+const ETIQUETAS_ESTADO: Record<string, string> = {
+	pendiente: 'Pendiente',
+	confirmado: 'Confirmado',
+	cancelado: 'Cancelado',
+	completado: 'Completado',
+};
+
+const COLORES_ESTADO: Record<string, string> = {
+	pendiente: 'bg-amber-100 text-amber-800',
+	confirmado: 'bg-green-100 text-green-800',
+	cancelado: 'bg-red-100 text-red-800',
+	completado: 'bg-zinc-200 text-zinc-700',
+};
 
 const DIAS_SEMANA = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
-export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSeleccionarDia }: Props) {
+export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSeleccionarDia, onConfirmar }: Props) {
 	const fechaHoy = useMemo(() => aSoloDia(hoy ?? new Date()), [hoy]);
 	
 	// El mes/año visible se inicializa con el mes de fechaHoy
@@ -22,6 +37,10 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 	
 	// El día seleccionado por defecto es hoy (representado como ISO string)
 	const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(() => aISO(fechaHoy));
+
+	// Id del último evento confirmado, para mostrar el mensaje de éxito (M05-US5).
+	// Se guarda el id (y no el texto) para forzar el re-render en cada confirmación.
+	const [ultimoConfirmado, setUltimoConfirmado] = useState<string | null>(null);
 
 	const cambiarMes = (delta: number) => {
 		setMesVisible((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
@@ -60,8 +79,17 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 		const fecha = new Date(anioVisible, mesVisibleIndex, dia);
 		const iso = aISO(fecha);
 		setFechaSeleccionada(iso);
+		setUltimoConfirmado(null);
 		if (onSeleccionarDia) {
 			onSeleccionarDia(fecha);
+		}
+	};
+
+	const confirmarTurno = (turno: Evento) => {
+		turno.confirmar();
+		setUltimoConfirmado(turno.obtenerId());
+		if (onConfirmar) {
+			onConfirmar(turno);
 		}
 	};
 
@@ -186,15 +214,23 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 				<h2 className="text-lg font-semibold text-zinc-800 border-b border-zinc-100 pb-2">
 					Reservas del día
 				</h2>
+
+				{ultimoConfirmado !== null && (
+					<p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-800">
+						Evento confirmado correctamente
+					</p>
+				)}
 				
 				{turnosDelDia.length > 0 ? (
 					<div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] pr-1">
 						{turnosDelDia.map((turno) => {
 							const hora = String(turno.obtenerFechaHora().getHours()).padStart(2, '0') + ':' + 
 							             String(turno.obtenerFechaHora().getMinutes()).padStart(2, '0');
+							const estado = turno.obtenerEstado();
 							return (
-								<div
+								<article
 									key={turno.obtenerId()}
+									aria-label={`Turno de ${turno.obtenerNombre()}`}
 									className="rounded-lg border border-zinc-150 p-4 shadow-sm hover:shadow transition-all bg-zinc-50 flex flex-col gap-1.5"
 								>
 									<div className="flex justify-between items-center">
@@ -209,7 +245,23 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 										<p><span className="font-medium text-zinc-500">Teléfono:</span> {turno.obtenerTelefono() || 'No provisto'}</p>
 										<p><span className="font-medium text-zinc-550">Consulta:</span> {turno.obtenerDescripcion() || 'Sin descripción'}</p>
 									</div>
-								</div>
+									<div className="flex justify-between items-center pt-1">
+										<span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${COLORES_ESTADO[estado] ?? 'bg-zinc-100 text-zinc-700'}`}>
+											{ETIQUETAS_ESTADO[estado] ?? estado}
+										</span>
+										{/* M05-US5: la opción solo se muestra para eventos pendientes */}
+										{turno.puedeConfirmarse() && (
+											<button
+												type="button"
+												onClick={() => confirmarTurno(turno)}
+												aria-label={`Confirmar turno de ${turno.obtenerNombre()}`}
+												className="rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+											>
+												Confirmar
+											</button>
+										)}
+									</div>
+								</article>
 							);
 						})}
 					</div>

@@ -57,6 +57,18 @@ export class Evento {
 		this.fechaHora = fechaHora;
 	}
 
+	puedeConfirmarse(): boolean {
+		return this.estado === 'pendiente';
+	}
+
+	// M05-US5: solo un evento "pendiente" puede pasar a "confirmado".
+	confirmar(): void {
+		if (!this.puedeConfirmarse()) {
+			throw new Error('Solo se pueden confirmar eventos pendientes');
+		}
+		this.estado = 'confirmado';
+	}
+
 	cancelarEvento(): void {
 		if (this.estado === 'completado') {
 			throw new Error('El evento ya esta completado');

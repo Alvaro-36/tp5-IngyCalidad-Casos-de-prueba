@@ -6,10 +6,13 @@ import CalendarioAdmin from '@/components/CalendarioAdmin';
 import { Evento } from '@/domain/entities/evento';
 import { useState } from 'react';
 
-// Datos de prueba de los casos CP-M05-009 (pendiente) y CP-M05-010 (cancelado).
+// Datos de prueba de los casos CP-M05-009 (pendiente) y CP-M05-010 (cancelado),
+// y de los casos CP-M05-011 (reserva activa futura, cancelable) y CP-M05-012 (fecha pasada).
 const crearTurnosDemo = () => [
   new Evento('E-01', 'pendiente', new Date(2026, 10, 20, 10, 0), 'Consulta inicial', '2615555555', 'Juan Perez'),
   new Evento('E-02', 'cancelado', new Date(2026, 10, 20, 11, 0), 'Seguimiento', '2614444444', 'María López'),
+  new Evento('E-11', 'confirmado', new Date(2026, 10, 25, 15, 0), 'Renovación de receta', '2613333333', 'Ana Torres'),
+  new Evento('E-12', 'confirmado', new Date(2026, 9, 1, 9, 0), 'Control mensual', '2612222222', 'Luis Gómez'),
 ];
 
 export default function Home() {

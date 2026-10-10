@@ -69,6 +69,18 @@ export class Evento {
 		this.estado = 'confirmado';
 	}
 
+	// M05-US3: los eventos finalizados, en curso o cancelados no admiten cambios.
+	puedeReagendarse(): boolean {
+		return !['en_curso', 'completado', 'cancelado'].includes(this.estado);
+	}
+
+	reagendar(fechaHora: Date): void {
+		if (!this.puedeReagendarse()) {
+			throw new Error('No se puede reagendar un evento en curso, completado o cancelado');
+		}
+		this.fechaHora = fechaHora;
+	}
+
 	cancelarEvento(): void {
 		if (this.estado === 'completado') {
 			throw new Error('El evento ya esta completado');

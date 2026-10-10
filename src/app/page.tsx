@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import ConfirmacionReserva from '@/components/ConfirmacionReserva';
 import FormularioDatosPersonales, { type DatosPersonales } from '@/components/FormularioDatosPersonales';
 import SeleccionEvento from '@/components/SeleccionEvento';
@@ -20,6 +20,8 @@ const crearTurnosDemo = () => [
   new Evento('E-12', 'confirmado', new Date(2026, 9, 1, 9, 0), 'Control mensual', '2612222222', 'Luis Gómez'),
 ];
 
+const HORARIOS_REAGENDADO_DEMO = [new Date(2026, 10, 22, 15, 30)];
+
 export default function Home() {
   const [turnosDemo] = useState(crearTurnosDemo);
   const [profesional] = useState<Profesional>(() => crearProfesionalMock(new Date()));
@@ -31,13 +33,10 @@ export default function Home() {
     horario: string;
   } | null>(null);
   const [reserva, setReserva] = useState<Reserva | null>(null);
-  const [versionDisponibilidad, setVersionDisponibilidad] = useState(0);
+  const [, setVersionDisponibilidad] = useState(0);
   const [claveSeleccion, setClaveSeleccion] = useState(0);
 
-  const horariosNoDisponibles = useMemo(
-    () => repositorio.obtenerHorariosOcupados(),
-    [repositorio, versionDisponibilidad]
-  );
+  const horariosNoDisponibles = repositorio.obtenerHorariosOcupados();
 
   const handleSubmit = (datos: DatosPersonales) => {
     if (!seleccion) {
@@ -109,7 +108,7 @@ export default function Home() {
         />
       )}
       <h1 className="mt-10 mb-4 text-xl font-semibold text-zinc-800">Panel del administrador</h1>
-      <CalendarioAdmin turnos={turnosDemo} />
+      <CalendarioAdmin turnos={turnosDemo} horariosDisponiblesReagendado={HORARIOS_REAGENDADO_DEMO} />
     </main>
   );
 }

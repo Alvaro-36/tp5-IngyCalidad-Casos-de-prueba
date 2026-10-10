@@ -11,6 +11,8 @@ interface Props {
 	turnos?: Evento[];   // Turnos completos para mostrar en el panel de reservas
 	onSeleccionarDia?: (fecha: Date) => void;
 	onConfirmar?: (turno: Evento) => void; // Ej: disparar el email al invitado
+	onReagendar?: (turno: Evento) => void; // Ej: notificar al usuario invitado
+	horariosDisponiblesReagendado?: Date[];
 }
 
 const ETIQUETAS_ESTADO: Record<string, string> = {
@@ -29,7 +31,7 @@ const COLORES_ESTADO: Record<string, string> = {
 
 const DIAS_SEMANA = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
-export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSeleccionarDia, onConfirmar }: Props) {
+export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSeleccionarDia, onConfirmar, onReagendar, horariosDisponiblesReagendado = [] }: Props) {
 	const fechaHoy = useMemo(() => aSoloDia(hoy ?? new Date()), [hoy]);
 	
 	// El mes/año visible se inicializa con el mes de fechaHoy
@@ -41,6 +43,9 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 	// Id del último evento confirmado, para mostrar el mensaje de éxito (M05-US5).
 	// Se guarda el id (y no el texto) para forzar el re-render en cada confirmación.
 	const [ultimoConfirmado, setUltimoConfirmado] = useState<string | null>(null);
+	const [ultimoReagendado, setUltimoReagendado] = useState<string | null>(null);
+	const [turnoAReagendar, setTurnoAReagendar] = useState<Evento | null>(null);
+	const [fechaReagendada, setFechaReagendada] = useState('');
 
 	const cambiarMes = (delta: number) => {
 		setMesVisible((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
@@ -61,19 +66,19 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 	const primerDiaSemana = (new Date(anioVisible, mesVisibleIndex, 1).getDay() + 6) % 7;
 
 	// Días que tienen reservas (derivados de `turnos` si existe, o usando la prop `reservas`)
-	const diasConReservas = useMemo(() => {
+	const diasConReservas = (() => {
 		if (turnos && turnos.length > 0) {
 			return Array.from(new Set(turnos.map((t) => aISO(t.obtenerFechaHora()))));
 		}
 		return reservas;
-	}, [turnos, reservas]);
+	})();
 
 	// Turnos correspondientes al día seleccionado, ordenados cronológicamente
-	const turnosDelDia = useMemo(() => {
+	const turnosDelDia = (() => {
 		return turnos
 			.filter((t) => aISO(t.obtenerFechaHora()) === fechaSeleccionada)
 			.sort((a, b) => a.obtenerFechaHora().getTime() - b.obtenerFechaHora().getTime());
-	}, [turnos, fechaSeleccionada]);
+	})();
 
 	const seleccionarDia = (dia: number) => {
 		const fecha = new Date(anioVisible, mesVisibleIndex, dia);
@@ -91,6 +96,19 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 		if (onConfirmar) {
 			onConfirmar(turno);
 		}
+	};
+
+	const abrirReagendado = (turno: Evento) => {
+		setTurnoAReagendar(turno);
+		setFechaReagendada(horariosDisponiblesReagendado[0]?.toISOString() ?? '');
+	};
+
+	const confirmarReagendado = () => {
+		if (!turnoAReagendar || !fechaReagendada) return;
+		turnoAReagendar.reagendar(new Date(fechaReagendada));
+		setUltimoReagendado(turnoAReagendar.obtenerId());
+		setTurnoAReagendar(null);
+		onReagendar?.(turnoAReagendar);
 	};
 
 	return (
@@ -220,6 +238,11 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 						Evento confirmado correctamente
 					</p>
 				)}
+				{ultimoReagendado !== null && (
+					<p role="status" className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800">
+						Evento reagendado correctamente. Se notificó al usuario del cambio de horario.
+					</p>
+				)}
 				
 				{turnosDelDia.length > 0 ? (
 					<div className="flex flex-col gap-3 overflow-y-auto max-h-[350px] pr-1">
@@ -260,6 +283,15 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 												Confirmar
 											</button>
 										)}
+										<button
+											type="button"
+											disabled={!turno.puedeReagendarse()}
+											onClick={() => abrirReagendado(turno)}
+											aria-label={`Reagendar turno de ${turno.obtenerNombre()}`}
+											className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:bg-zinc-300"
+										>
+											Reagendar
+										</button>
 									</div>
 								</article>
 							);
@@ -274,6 +306,25 @@ export default function CalendarioAdmin({ hoy, reservas = [], turnos = [], onSel
 					</div>
 				)}
 			</section>
+
+			{turnoAReagendar !== null && (
+				<section role="dialog" aria-modal="true" aria-labelledby="titulo-reagendar" className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
+					<div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+						<h2 id="titulo-reagendar" className="text-lg font-semibold text-zinc-800">Reagendar evento</h2>
+						<p className="mt-1 text-sm text-zinc-600">Seleccioná una nueva fecha y horario disponibles para {turnoAReagendar.obtenerNombre()}.</p>
+						<label htmlFor="nuevo-horario" className="mt-4 block text-sm font-medium text-zinc-700">Nueva fecha y horario</label>
+						<select id="nuevo-horario" value={fechaReagendada} onChange={(event) => setFechaReagendada(event.target.value)} className="mt-1 w-full rounded-md border border-zinc-300 p-2">
+							{horariosDisponiblesReagendado.map((fecha) => (
+								<option key={fecha.toISOString()} value={fecha.toISOString()}>{fecha.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</option>
+							))}
+						</select>
+						<div className="mt-5 flex justify-end gap-3">
+							<button type="button" onClick={() => setTurnoAReagendar(null)} className="rounded-md px-3 py-2 text-sm font-medium text-zinc-700">Cancelar</button>
+							<button type="button" onClick={confirmarReagendado} disabled={!fechaReagendada} className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300">Confirmar nuevo horario</button>
+						</div>
+					</div>
+				</section>
+			)}
 		</div>
 	);
 }
